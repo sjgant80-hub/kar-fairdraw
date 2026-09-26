@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>kar-fairdraw — Verifiable Sample & Split Auditor</title>
+<style>
+  :root {
+    --bg: #0b0d12;
+    --surface: #12151d;
+    --surface-2: #171b26;
+    --border: #262b3a;
+    --text: #e7e9ee;
+    --muted: #9298ab;
+    --accent: #6fd3a8;
+    --accent-dim: #2e5c48;
+    --danger: #ef6a6a;
+    --danger-dim: #4a2a2a;
+    --warn: #e2b85a;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  a { color: var(--accent); }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px 64px;
+  }
+  header {
+    margin-bottom: 24px;
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .tag {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin: 0 0 16px;
+  }
+  .byline {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 18px 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-size: 1.05rem;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h3 {
+    font-size: 0.92rem;
+    margin: 16px 0 8px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  p { margin: 0 0 10px; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .limits li::marker { color: var(--warn); }
+  code, .mono {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  pre.spec {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 12px 0 6px;
+  }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=number], textarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 9px 10px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    resize: vertical;
+  }
+  textarea { min-height: 96px; }
+  textarea.small { min-height: 64px; }
+  input:focus, textarea:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  .row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .row > div { flex: 1 1 180px; min-width: 0; }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 640px) {
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  button {
+    background: var(--accent);
+    color: #06120c;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 14px;
+    margin-right: 8px;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-weight: 500;
+  }
+  button.tiny {
+    padding: 4px 9px;
+    font-size: 0.75rem;
+    margin-top: 6px;
+  }
+  .meta-line {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 8px;
+    word-break: break-all;
+  }
+  .warning {
+    background: rgba(226,184,90,0.08);
+    border: 1px solid var(--warn);
+    color: var(--warn);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    margin-top: 10px;
+  }
+  .result-block {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+  }
+  .badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    border-radius: 999px;
+    padding: 3px 11px;
+    text-transform: uppercase;
+  }
+  .badge.pass { background: var(--accent-dim); color: var(--accent); }
+  .badge.fail { background: var(--danger-dim); color: var(--danger); }
+  .badge.info { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+  .list-out {
+    max-height: 220px;
+    overflow: auto;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .kv { display: flex; justify-content: space-between; gap: 10px; font-size: 0.85rem; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .kv:last-child { border-bottom: none; }
+  .kv span:first-child { color: var(--muted); }
+  footer {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+    margin-top: 30px;
+  }
+  details summary { cursor: pointer; color: var(--accent); font-size: 0.85rem; margin-top: 4px; }
+  .diffline { display:block; }
+  .diffline.miss { color: var(--danger); }
+  .diffline.extra { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>kar-fairdraw</h1>
+    <p class="tag">Verifiable sample &amp; split auditor — proves a claimed "random" evaluation sample or train/test split matches a disclosed, reproducible draw. Runs entirely in this tab.</p>
+    <p class="byline">built by Kar (karma-didy) · sovereign, offline, no LLM judge</p>
+  </header>
+
+  <div class="card">
+    <h2>What this checks — and what it doesn't</h2>
+    <p>AI evaluation reports often say things like "we tested on a random sample of 500 held-out examples" or "an 80/20 train/test split." There is usually no way for a reader to check that. <strong>kar-fairdraw</strong> lets anyone recompute the exact same draw from a disclosed population, seed and size, and compare it byte-for-byte against what was published — or check that a claimed train/test split doesn't secretly overlap (a common source of inflated scores).</p>
+    <ul class="limits">
+      <li><strong>It proves reproducibility, not honesty of intent.</strong> It confirms a claimed sample is exactly what this documented algorithm produces for the stated seed and population — nothing about whether that seed was itself cherry-picked by trying many seeds first.</li>
+      <li><strong>Publish the seed and population hash before drawing</strong> (or anchor them, e.g. with a tool like <span class="mono">kar-anchor</span>) if you want to rule out after-the-fact seed-shopping. This tool alone only proves internal consistency of what's in front of you right now.</li>
+      <li><strong>It does not verify the population list is complete or authentic</strong> — that the 10,000 IDs you pasted really are the full eval set. That's a separate provenance claim.</li>
+      <li>Nothing you type is sent anywhere. No network calls, no storage beyond this tab, works offline.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>How the draw is computed</h2>
+    <p>Deterministic, three-step, fully specified below so it can be reimplemented in any language and checked against this page's own self-test vectors (see bottom of page).</p>
+    <details>
+      <summary>Show the exact spec (seed hash → PRNG → shuffle)</summary>
+      <pre class="spec">1. NORMALISE POPULATION
+   Split input on newlines, trim each line, drop empty lines.
+   Keep original order and any duplicates exactly as given.
+
+2. SEED → 32-bit INTEGER  (xmur3 string hash)
+   h = 1779033703 XOR length(seed)
+   for each char c in seed:
+     h = imul(h XOR charCode(c), 0x3432E1A9)      // 3432918353
+     h = rotl32(h, 13)
+   // finalise (run once, this is the emitted seed32):
+   h = imul(h XOR (h >>> 16), 0x85EBCA6B)          // 2246822507
+   h = imul(h XOR (h >>> 13), 0xC2B2AE35)          // 3266489909
+   h = h XOR (h >>> 16)
+   seed32 = h >>> 0
+
+3. PRNG  (mulberry32, called once per random() draw)
+   state = seed32
+   next():
+     state = (state + 0x6D2B79F5) | 0
+     t = imul(state XOR (state >>> 15), state OR 1)
+     t = (t + imul(t XOR (t >>> 7), t OR 61)) XOR t
+     return ((t XOR (t >>> 14)) >>> 0) / 4294967296   // float in [0,1)
+
+4. SHUFFLE  (Fisher-Yates, high-to-low)
+   for i from length-1 down to 1:
+     j = floor(next() * (i+1))
+     swap arr[i], arr[j]
+
+5. DRAW
+   Group A ("drawn")  = shuffled[0 .. n-1]
+   Group B ("held")   = shuffled[n ..]
+
+6. RECEIPT
+   populationHash = SHA-256( population.join("\n") )
+   receipt = SHA-256( JSON.stringify({v:1, algo, seed, populationCount, populationHash, n, drawn}) )
+
+All integer ops are 32-bit (imul / &gt;&gt;&gt; / |0), so this reproduces identically on any platform that
+implements 32-bit unsigned arithmetic the same way — including a from-scratch reimplementation in
+Python, Go, Rust, etc. The entire live implementation is also just "view source" on this page —
+there is no server-side or hidden component.</pre>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>1 · Population, seed &amp; draw size</h2>
+    <label for="population">Population — one ID per line (this is the full disclosed dataset)</label>
+    <textarea id="population" placeholder="ex-0001&#10;ex-0002&#10;ex-0003&#10;...">ex-0001
+ex-0002
+ex-0003
+ex-0004
+ex-0005
+ex-0006
+ex-0007
+ex-0008
+ex-0009
+ex-0010
+ex-0011
+ex-0012
+ex-0013
+ex-0014
+ex-0015
+ex-0016
+ex-0017
+ex-0018
+ex-0019
+ex-0020</textarea>
+    <div class="meta-line" id="popMeta">20 lines parsed</div>
+    <div class="row">
+      <div>
+        <label for="seed">Seed (any text — the published, disclosed seed)</label>
+        <input type="text" id="seed" value="eval-2026-09-26">
+      </div>
+      <div>
+        <label for="drawSize">Draw size N (size of Group A)</label>
+        <input type="number" id="drawSize" value="6" min="0">
+      </div>
+    </div>
+    <button id="btnCompute">Compute canonical draw</button>
+    <button class="secondary" id="btnClearPop" type="button">Reset example data</button>
+
+    <div id="computeResults" style="display:none;">
+      <div class="result-block">
+        <h3>Group A — drawn (first N of the shuffle)</h3>
+        <div class="list-out" id="outDrawn"></div>
+        <button class="tiny secondary" data-copy="outDrawn">Copy</button>
+      </div>
+      <div class="result-block">
+        <h3>Group B — held / remainder</h3>
+        <div class="list-out" id="outHeld"></div>
+        <button class="tiny secondary" data-copy="outHeld">Copy</button>
+      </div>
+      <div class="result-block">
+        <h3>Receipt — publish this alongside the claim</h3>
+        <div class="kv"><span>Population hash (SHA-256)</span><span class="mono" id="outPopHash"></span></div>
+        <div class="kv"><span>Receipt hash (SHA-256)</span><span class="mono" id="outReceiptHash"></span></div>
+        <div class="list-out" id="outReceiptJson" style="margin-top:8px;"></div>
+        <button class="tiny secondary" data-copy="outReceiptJson">Copy JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Verify a claimed sample / split</h2>
+    <p>Paste what was <em>published</em> as the drawn set and/or the held-out set. This checks two independent things: (a) does the claimed drawn+held partition cleanly cover the population above with no overlap or leakage, and (b) does the claimed drawn set exactly match what the seed in section 1 deterministically produces.</p>
+    <div class="grid2">
+      <div>
+        <label for="claimedDrawn">Claimed Group A / drawn (one per line)</label>
+        <textarea class="small" id="claimedDrawn" placeholder="paste the published sample here"></textarea>
+      </div>
+      <div>
+        <label for="claimedHeld">Claimed Group B / held (optional, one per line)</label>
+        <textarea class="small" id="claimedHeld" placeholder="paste the published remainder/train-set here"></textarea>
+      </div>
+    </div>
+    <button id="btnVerify">Check claim</button>
+    <button class="secondary" id="btnFillMatch" type="button">Fill with a matching example</button>
+    <button class="secondary" id="btnFillTamper" type="button">Fill with a tampered example</button>
+
+    <div id="verifyResults" style="display:none;"></div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Built-in self-test</h2>
+    <p>Runs two fixed vectors through the exact functions above and compares them against pre-computed expected output, so you don't have to trust the tool — you can re-run the spec in section &ldquo;How the draw is computed&rdquo; yourself in any language and compare against these same numbers.</p>
+    <button id="btnSelfTest">Run self-test</button>
+    <div id="selfTestOut" style="margin-top:12px;"></div>
+  </div>
+
+  <footer>
+    kar-fairdraw · part of the FallForge trust-rail line · sovereign single-file tool, no accounts, no telemetry, no pricing.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- core deterministic engine ----------
+
+  function xmur3(str) {
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++) {
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function () {
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      h ^= h >>> 16;
+      return h >>> 0;
+    };
+  }
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function seededRand(seedStr) {
+    const seedFn = xmur3(String(seedStr));
+    const seed32 = seedFn();
+    return mulberry32(seed32);
+  }
+
+  function fisherYates(arr, rand) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function normalizeLines(text) {
+    return String(text || "").split(/\r\n|\r|\n/).map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
+  }
+
+  function canonicalDraw(populationArr, seed, n) {
+    const rand = seededRand(seed);
+    const shuffled = fisherYates(populationArr, rand);
+    const nn = Math.max(0, Math.min(n | 0, shuffled.length));
+    return { shuffled: shuffled, drawn: shuffled.slice(0, nn), held: shuffled.slice(nn), n: nn };
+  }
+
+  async function sha256Hex(str) {
+    const enc = new TextEncoder().encode(str);
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+  }
+
+  function toCounts(arr) {
+    const m = new Map();
+    for (const x of arr) m.set(x, (m.get(x) || 0) + 1);
+    return m;
+  }
+
+  // items whose count in A exceeds count in B, and vice versa
+  function multisetDiff(a, b) {
+    const ca = toCounts(a), cb = toCounts(b);
+    const onlyInA = [], onlyInB = [];
+    const keys = new Set([].concat(Array.from(ca.keys()), Array.from(cb.keys())));
+    keys.forEach(function (k) {
+      const na = ca.get(k) || 0, nb = cb.get(k) || 0;
+      if (na > nb) onlyInA.push({ item: k, extra: na - nb });
+      if (nb > na) onlyInB.push({ item: k, extra: nb - na });
+    });
+    return { onlyInA: onlyInA, onlyInB: onlyInB, equal: onlyInA.length === 0 && onlyInB.length === 0 };
+  }
+
+  function overlapCounts(a, b) {
+    const ca = toCounts(a), cb = toCounts(b);
+    const overlap = [];
+    ca.forEach(function (na, k) {
+      const nb = cb.get(k);
+      if (nb) overlap.push({ item: k, count: Math.min(na, nb) });
+    });
+    return overlap;
+  }
+
+  function arraysEqualInOrder(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---------- DOM wiring ----------
+
+  const $ = function (id) { return document.getElementById(id); };
+
+  const popEl = $("population");
+  const popMeta = $("popMeta");
+  const seedEl = $("seed");
+  const drawSizeEl = $("drawSize");
+
+  function updatePopMeta() {
+    const lines = normalizeLines(popEl.value);
+    const counts = toCounts(lines);
+    let dupNote = "";
+    let dupCount = 0;
+    counts.forEach(function (c) { if (c > 1) dupCount++; });
+    if (dupCount > 0) dupNote = " · " + dupCount + " duplicate value(s) detected (algorithm still runs fine on positions, but check your data)";
+    popMeta.textContent = lines.length + " lines parsed" + dupNote;
+    return lines;
+  }
+  popEl.addEventListener("input", updatePopMeta);
+  updatePopMeta();
+
+  $("btnClearPop").addEventListener("click", function () {
+    popEl.value = ["ex-0001","ex-0002","ex-0003","ex-0004","ex-0005","ex-0006","ex-0007","ex-0008","ex-0009","ex-0010","ex-0011","ex-0012","ex-0013","ex-0014","ex-0015","ex-0016","ex-0017","ex-0018","ex-0019","ex-0020"].join("\n");
+    seedEl.value = "eval-2026-09-26";
+    drawSizeEl.value = 6;
+    updatePopMeta();
+    $("computeResults").style.display = "none";
+  });
+
+  function renderList(elId, arr) {
+    $(elId).textContent = arr.length ? arr.join("\n") : "(empty)";
+  }
+
+  $("btnCompute").addEventListener("click", async function () {
+    const population = updatePopMeta();
+    const seed = seedEl.value;
+    const n = parseInt(drawSizeEl.value, 10) || 0;
+    if (population.length === 0) { alert("Population is empty."); return; }
+    if (n > population.length) { alert("Draw size N cannot exceed population size (" + population.length + ")."); return; }
+
+    const result = canonicalDraw(population, seed, n);
+    renderList("outDrawn", result.drawn);
+    renderList("outHeld", result.held);
+
+    const populationHash = await sha256Hex(population.join("\n"));
+    const receiptObj = {
+      v: 1,
+      algo: "kar-fairdraw/xmur3+mulberry32+fisherYates/v1",
+      seed: seed,
+      populationCount: population.length,
+      populationHash: populationHash,
+      n: result.n,
+      drawn: result.drawn
+    };
+    const receiptStr = JSON.stringify(receiptObj, null, 2);
+    const receiptHash = await sha256Hex(JSON.stringify(receiptObj));
+
+    $("outPopHash").textContent = populationHash;
+    $("outReceiptHash").textContent = receiptHash;
+    $("outReceiptJson").textContent = receiptStr;
+    $("computeResults").style.display = "block";
+  });
+
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const el = $(btn.getAttribute("data-copy"));
+      const text = el.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function () {});
+      }
+      const old = btn.textContent;
+      btn.textContent = "Copied";
+      setTimeout(function () { btn.textContent = old; }, 1200);
+    });
+  });
+
+  function badge(pass, textPass, textFail) {
+    return '<span class="badge ' + (pass ? "pass" : "fail") + '">' + (pass ? textPass : textFail) + "</span>";
+  }
+
+  function diffListHtml(diff, labelA, labelB) {
+    let html = "";
+    if (diff.onlyInA.length) {
+      html += "<div class=\"list-out\">" + diff.onlyInA.map(function (d) {
+        return '<span class="diffline extra">+ ' + esc(d.item) + (d.extra > 1 ? " (x" + d.extra + ")" : "") + " — " + esc(labelA) + "</span>";
+      }).join("") + "</div>";
+    }
+    if (diff.onlyInB.length) {
+      html += "<div class=\"list-out\">" + diff.onlyInB.map(function (d) {
+        return '<span class="diffline miss">- ' + esc(d.item) + (d.extra > 1 ? " (x" + d.extra + ")" : "") + " — " + esc(labelB) + "</span>";
+      }).join("") + "</div>";
+    }
+    return html;
+  }
+
+  $("btnVerify").addEventListener("click", function () {
+    const population = normalizeLines(popEl.value);
+    const seed = seedEl.value;
+    const n = parseInt(drawSizeEl.value, 10) || 0;
+    const claimedDrawn = normalizeLines($("claimedDrawn").value);
+    const claimedHeld = normalizeLines($("claimedHeld").value);
+
+    if (claimedDrawn.length === 0 && claimedHeld.length === 0) {
+      alert("Paste at least a claimed Group A (drawn) or Group B (held) list to check.");
+      return;
+    }
+
+    let html = "";
+
+    // --- Partition integrity: does claimed A + B cover the population with no leakage? ---
+    html += '<div class="result-block"><h3>Partition integrity vs. the population in section 1</h3>';
+    const overlap = overlapCounts(claimedDrawn, claimedHeld);
+    const union = claimedDrawn.concat(claimedHeld);
+    const covDiff = multisetDiff(union, population);
+    const leakageOk = overlap.length === 0;
+    const coverageOk = covDiff.equal;
+    html += "<p>" + badge(leakageOk, "no A/B overlap", "leakage found") + " " + badge(coverageOk, "matches population exactly", "population mismatch") + "</p>";
+    if (!leakageOk) {
+      html += "<p>Items appearing in <strong>both</strong> claimed groups (train/test leakage):</p>";
+      html += "<div class=\"list-out\">" + overlap.map(function (o) { return esc(o.item) + (o.count > 1 ? " (x" + o.count + ")" : ""); }).join("\n") + "</div>";
+    }
+    if (!coverageOk) {
+      html += "<p>Coverage gaps against the pasted population (only counted for whichever of A/B you actually pasted):</p>";
+      html += diffListHtml(covDiff, "in claimed groups but not in population", "in population but missing from claimed groups");
+    }
+    html += "</div>";
+
+    // --- Seed reproducibility: does the seed in section 1 deterministically produce claimedDrawn? ---
+    html += '<div class="result-block"><h3>Seed reproducibility vs. seed "' + esc(seed) + '", N=' + n + '</h3>';
+    if (population.length === 0) {
+      html += '<p>' + badge(false, "", "population empty") + ' Add a population in section 1 to check this.</p>';
+    } else {
+      const recomputed = canonicalDraw(population, seed, n);
+      if (claimedDrawn.length) {
+        const drawnDiff = multisetDiff(claimedDrawn, recomputed.drawn);
+        const orderMatch = arraysEqualInOrder(claimedDrawn, recomputed.drawn);
+        html += "<p>Claimed Group A vs. recomputed Group A: " + badge(drawnDiff.equal, "exact multiset match", "mismatch") + " " + badge(orderMatch, "exact order match", "order differs") + "</p>";
+        if (!drawnDiff.equal) {
+          html += diffListHtml(drawnDiff, "claimed but not in recomputed draw", "recomputed but missing from claim");
+        }
+      }
+      if (claimedHeld.length) {
+        const heldDiff = multisetDiff(claimedHeld, recomputed.held);
+        html += "<p>Claimed Group B vs. recomputed Group B: " + badge(heldDiff.equal, "exact multiset match", "mismatch") + "</p>";
+        if (!heldDiff.equal) {
+          html += diffListHtml(heldDiff, "claimed but not in recomputed held-out", "recomputed but missing from claim");
+        }
+      }
+      if (!claimedDrawn.length && !claimedHeld.length) {
+        html += "<p class=\"meta-line\">Nothing to compare.</p>";
+      }
+    }
+    html += "</div>";
+
+    const out = $("verifyResults");
+    out.innerHTML = html;
+    out.style.display = "block";
+  });
+
+  $("btnFillMatch").addEventListener("click", function () {
+    const population = normalizeLines(popEl.value);
+    const n = parseInt(drawSizeEl.value, 10) || 0;
+    if (population.length === 0) { alert("Add a population first."); return; }
+    const result = canonicalDraw(population, seedEl.value, n);
+    $("claimedDrawn").value = result.drawn.join("\n");
+    $("claimedHeld").value = result.held.join("\n");
+  });
+
+  $("btnFillTamper").addEventListener("click", function () {
+    const population = normalizeLines(popEl.value);
+    const n = parseInt(drawSizeEl.value, 10) || 0;
+    if (population.length === 0) { alert("Add a population first."); return; }
+    const result = canonicalDraw(population, seedEl.value, n);
+    const drawn = result.drawn.slice();
+    const held = result.held.slice();
+    // swap one item between drawn and held to simulate a tampered / cherry-picked claim
+    if (drawn.length && held.length) {
+      const tmp = drawn[0];
+      drawn[0] = held[0];
+      held[0] = tmp;
+    }
+    $("claimedDrawn").value = drawn.join("\n");
+    $("claimedHeld").value = held.join("\n");
+  });
+
+  // ---------- self test ----------
+
+  const VECTORS = [
+    {
+      name: "vector 1 (a..j, seed \"kar-fairdraw-selftest\", n=4)",
+      population: ["a","b","c","d","e","f","g","h","i","j"],
+      seed: "kar-fairdraw-selftest",
+      n: 4,
+      expectedShuffled: ["h","d","e","g","f","c","j","b","i","a"],
+      expectedDrawn: ["h","d","e","g"],
+      expectedHeld: ["f","c","j","b","i","a"]
+    },
+    {
+      name: "vector 2 (item-1..item-20, seed \"eval-2026-09-26\", n=6)",
+      population: Array.from({ length: 20 }, function (_, i) { return "item-" + (i + 1); }),
+      seed: "eval-2026-09-26",
+      n: 6,
+      expectedShuffled: ["item-10","item-9","item-4","item-7","item-20","item-17","item-13","item-6","item-19","item-3","item-8","item-15","item-18","item-11","item-2","item-16","item-1","item-5","item-14","item-12"],
+      expectedDrawn: ["item-10","item-9","item-4","item-7","item-20","item-17"],
+      expectedHeld: ["item-13","item-6","item-19","item-3","item-8","item-15","item-18","item-11","item-2","item-16","item-1","item-5","item-14","item-12"]
+    }
+  ];
+
+  $("btnSelfTest").addEventListener("click", function () {
+    let allPass = true;
+    let html = "";
+    VECTORS.forEach(function (v) {
+      const result = canonicalDraw(v.population, v.seed, v.n);
+      const shufOk = arraysEqualInOrder(result.shuffled, v.expectedShuffled);
+      const drawnOk = arraysEqualInOrder(result.drawn, v.expectedDrawn);
+      const heldOk = arraysEqualInOrder(result.held, v.expectedHeld);
+      const pass = shufOk && drawnOk && heldOk;
+      allPass = allPass && pass;
+      html += "<div class=\"kv\"><span>" + esc(v.name) + "</span>" + badge(pass, "PASS", "FAIL") + "</div>";
+      if (!pass) {
+        html += "<div class=\"list-out\">got: " + esc(JSON.stringify(result.shuffled)) + "\nexpected: " + esc(JSON.stringify(v.expectedShuffled)) + "</div>";
+      }
+    });
+    html = "<p>" + badge(allPass, "all vectors reproduced exactly", "self-test failed — do not trust this build") + "</p>" + html;
+    $("selfTestOut").innerHTML = html;
+  });
+
+})();
+</script>
+</body>
+</html>
