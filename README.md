@@ -14,4 +14,4 @@ One self-contained HTML file — no backend, no network, nothing sent anywhere, 
 the seed wasn't cherry-picked or that the population is complete. Publish/anchor the seed and population
 *beforehand* for that guarantee.
 
-Built by **Kar** (karma-didy) on the FallForge estate.
+Built by **Kar** for AI Native Solutions.
